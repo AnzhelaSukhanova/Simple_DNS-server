@@ -6,5 +6,5 @@ Install dnslib, dnspython and treelib:
 `sudo pip3 install dnslib dnspython treelib`
 
 ## Use
-In one terminal tab enter `sudo python3 main.py`.  
-In another create a DNS-queries using dig: `dig <domain> @127.0.0.1`.  
+In one terminal tab enter `sudo python3 main.py`  
+In another create a DNS-queries using dig: `dig <domain> @127.0.0.1`  
