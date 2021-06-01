@@ -60,7 +60,7 @@ def resolve(domain):
     else:
         new_time = time.perf_counter()
         if new_time - last_time > 1e4:
-            answer = dns.resolver.resolve(domain, raise_on_no_answer=False)
+            answer = resolver.resolve(domain, raise_on_no_answer=False)
             ip = answer.rrset.to_text().split()[-1]
             cache.get_node(par_id).data = (ip, new_time)
     return ip
