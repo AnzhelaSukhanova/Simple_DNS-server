@@ -9,6 +9,9 @@ udp_socket = socket.socket(type=socket.SOCK_DGRAM)
 udp_socket.bind(("127.0.0.1", 53))
 cache = Tree()
 
+resolver = dns.resolver.Resolver(configure=False)
+resolver.nameservers = ["8.8.8.8", "8.8.4.4"]
+
 
 def init_cache():
     global dom_num
@@ -50,14 +53,14 @@ def resolve(domain):
     zones = domain.split('.')[1::-1]
     (ip, last_time), (ind, par_id) = find_in_cache(zones)
     if ip == "":
-        answer = dns.resolver.resolve(domain)
+        answer = resolver.resolve(domain, raise_on_no_answer=False)
         ip = answer.rrset.to_text().split()[-1]
         cache.create_node(zones[ind], dom_num, parent=par_id, data=(ip, last_time))
         dom_num += 1
     else:
         new_time = time.perf_counter()
         if new_time - last_time > 1e4:
-            answer = dns.resolver.resolve(domain)
+            answer = dns.resolver.resolve(domain, raise_on_no_answer=False)
             ip = answer.rrset.to_text().split()[-1]
             cache.get_node(par_id).data = (ip, new_time)
     return ip
