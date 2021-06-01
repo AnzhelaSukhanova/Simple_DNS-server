@@ -39,10 +39,11 @@ def find_in_cache(zones):
             break
     if not found:
         for z in zones[ind + 1:]:
-            cache.create_node(z, dom_num, parent=par_id)
+            cache.create_node(z, dom_num, parent=par_id, data=("", 0, 0))
             par_id = dom_num
             dom_num += 1
-        return ("", time.perf_counter()), (ind, par_id)
+        ttl = int(1e5/ind)
+        return ("", time.perf_counter(), ttl), (ind, par_id)
     else:
         data = cache.get_node(par_id).data
         return data, (ind, par_id)
@@ -51,19 +52,19 @@ def find_in_cache(zones):
 def resolve(domain):
     global dom_num
     zones = domain.split('.')[1::-1]
-    (ip, last_time), (ind, par_id) = find_in_cache(zones)
+    (ip, last_time, ttl), (ind, par_id) = find_in_cache(zones)
     if ip == "":
         answer = resolver.resolve(domain, raise_on_no_answer=False)
         ip = answer.rrset.to_text().split()[-1]
-        cache.create_node(zones[ind], dom_num, parent=par_id, data=(ip, last_time))
+        cache.create_node(zones[ind], dom_num, parent=par_id, data=(ip, last_time, ttl))
         dom_num += 1
     else:
         new_time = time.perf_counter()
-        if new_time - last_time > 1e4:
+        if new_time - last_time > ttl:
             answer = resolver.resolve(domain, raise_on_no_answer=False)
             ip = answer.rrset.to_text().split()[-1]
-            cache.get_node(par_id).data = (ip, new_time)
-    return ip
+            cache.get_node(par_id).data = (ip, new_time, ttl)
+    return ip, ttl
 
 
 if __name__ == '__main__':
@@ -80,9 +81,9 @@ if __name__ == '__main__':
                 for que in record.questions:
                     domain = que.qname
                     if que.qtype == 1:
-                        ip = resolve(str(domain))
+                        ip, ttl = resolve(str(domain))
                         header.qr = 1
-                        answers.append(RR(domain, rdata=A(ip)))
+                        answers.append(RR(domain, ttl=ttl, rdata=A(ip)))
             answer = DNSRecord(header, record.questions, answers)
             udp_socket.sendto(answer.pack(), addr)
     except KeyboardInterrupt:
