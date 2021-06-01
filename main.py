@@ -16,11 +16,8 @@ resolver.nameservers = ["8.8.8.8", "8.8.4.4"]
 def init_cache():
     global dom_num
     dom_num = 0
-    cache.create_node("", 0)
-    cache.create_node("ru", 1, parent=0)
-    cache.create_node("com", 2, parent=0)
-    cache.create_node("org", 3, parent=0)
-    dom_num += 4
+    cache.create_node("", 0, data=("", 0, 0))
+    dom_num += 1
 
 
 def find_in_cache(zones):
@@ -38,11 +35,13 @@ def find_in_cache(zones):
         if not found:
             break
     if not found:
+        depth = ind + 1
         for z in zones[ind + 1:]:
             cache.create_node(z, dom_num, parent=par_id, data=("", 0, 0))
             par_id = dom_num
             dom_num += 1
-        ttl = int(1e5/ind)
+            depth += 1
+        ttl = int(1e5/depth)
         return ("", time.perf_counter(), ttl), (ind, par_id)
     else:
         data = cache.get_node(par_id).data
@@ -84,8 +83,8 @@ if __name__ == '__main__':
                         ip, ttl = resolve(str(domain))
                         header.qr = 1
                         answers.append(RR(domain, ttl=ttl, rdata=A(ip)))
-            answer = DNSRecord(header, record.questions, answers)
-            udp_socket.sendto(answer.pack(), addr)
+                answer = DNSRecord(header, record.questions, answers)
+                udp_socket.sendto(answer.pack(), addr)
     except KeyboardInterrupt:
         udp_socket.close()
         exit(0)
