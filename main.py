@@ -48,7 +48,7 @@ def find_in_cache(zones):
             break
     if not found:
         for z in zones[depth:]:
-            cache.create_node(z, dom_num, parent=par_id, data=(1, 0, 0))
+            cache.create_node(z, dom_num, parent=par_id, data=(None, 0, 0))
             par_id = dom_num
             dom_num += 1
             depth += 1
@@ -77,7 +77,7 @@ def resolve(domain):
     global dom_num
     zones = domain.split('.')[-2::-1]
     (ip, last_time, ttl), par_id = find_in_cache(zones)
-    if not ip or ip == 1:
+    if not ip:
         for root_ip in cache.get_node(0).data[0]:
             ip = rec_find(domain, root_ip)
             if ip:
@@ -101,7 +101,8 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG,
                         filename='log',
                         filemode='w',
-                        format='%(asctime)s - %(message)s')
+                        format='%(asctime)s - %(levelname)s - %(message)s',
+                        datefmt='%d-%b-%y %H:%M:%S')
     try:
         while True:
             data, addr = udp_socket.recvfrom(1024)
@@ -117,9 +118,9 @@ if __name__ == '__main__':
                         ip, ttl = resolve(str(domain))
                         if ip:
                             answers.append(RR(domain, ttl=ttl, rdata=A(ip)))
-                            logging.info(" IP-address for domain " + str(domain) + " is " + str(ip))
+                            logging.info(str(domain) + " - " + str(ip))
                         else:
-                            logging.warning(" IP-address for domain " + str(domain) + " was not found!")
+                            logging.error(str(domain) + " - IP-address was not found!")
                 if not answers:
                     header.rcode = 2
                 header.ra = 1
