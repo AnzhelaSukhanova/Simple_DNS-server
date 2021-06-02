@@ -1,5 +1,6 @@
 import socket
 import time
+import logging
 
 from dnslib import *
 from treelib import Tree
@@ -34,29 +35,29 @@ def init_cache():
 def find_in_cache(zones):
     global dom_num
     par_id = 0
-    ind = 0
+    depth = 0
     for z in zones:
         found = False
         for sub in cache.children(par_id):
             if sub.tag == z:
                 par_id = sub.identifier
                 found = True
-                ind += 1
+                depth += 1
                 break
         if not found:
             break
     if not found:
-        depth = ind + 1
-        for z in zones[ind + 1:]:
-            cache.create_node(z, dom_num, parent=par_id, data=([], 0, 0))
+        for z in zones[depth:]:
+            cache.create_node(z, dom_num, parent=par_id, data=(1, 0, 0))
             par_id = dom_num
             dom_num += 1
             depth += 1
+        depth += 1
         ttl = int(1e5/depth)
-        return ([], time.perf_counter(), ttl), (ind, par_id)
+        return (None, time.perf_counter(), ttl), par_id
     else:
         data = cache.get_node(par_id).data
-        return data, (ind, par_id)
+        return data, par_id
 
 
 def rec_find(domain, ip):
@@ -68,20 +69,21 @@ def rec_find(domain, ip):
                 next_ip = str(record.rdata)
                 return rec_find(domain, next_ip)
     else:
-        return ip
+        return str(resp.rr[0].rdata)
+    return None
 
 
 def resolve(domain):
     global dom_num
-    zones = domain.split('.')[1::-1]
-    (ip, last_time, ttl), (ind, par_id) = find_in_cache(zones)
-    if not ip:
+    zones = domain.split('.')[-2::-1]
+    (ip, last_time, ttl), par_id = find_in_cache(zones)
+    if not ip or ip == 1:
         for root_ip in cache.get_node(0).data[0]:
             ip = rec_find(domain, root_ip)
             if ip:
                 break
-        cache.create_node(zones[ind], dom_num, parent=par_id, data=(ip, last_time, ttl))
-        dom_num += 1
+        if ip:
+            cache.get_node(par_id).data = (ip, last_time, ttl)
     else:
         new_time = time.perf_counter()
         if new_time - last_time > ttl:
@@ -89,12 +91,17 @@ def resolve(domain):
                 ip = rec_find(domain, root_ip)
                 if ip:
                     break
-            cache.get_node(par_id).data = (ip, new_time, ttl)
+            if ip:
+                cache.get_node(par_id).data = (ip, new_time, ttl)
     return ip, ttl
 
 
 if __name__ == '__main__':
     init_cache()
+    logging.basicConfig(level=logging.DEBUG,
+                        filename='log',
+                        filemode='w',
+                        format='%(asctime)s - %(message)s')
     try:
         while True:
             data, addr = udp_socket.recvfrom(1024)
@@ -110,6 +117,9 @@ if __name__ == '__main__':
                         ip, ttl = resolve(str(domain))
                         if ip:
                             answers.append(RR(domain, ttl=ttl, rdata=A(ip)))
+                            logging.info(" IP-address for domain " + str(domain) + " is " + str(ip))
+                        else:
+                            logging.warning(" IP-address for domain " + str(domain) + " was not found!")
                 if not answers:
                     header.rcode = 2
                 header.ra = 1
