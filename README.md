@@ -2,8 +2,8 @@
 Simple DNS-server (53/UDP) in Python 3 using dnslib and dnspython.
 
 ## Deps
-Install dnslib, dnspython and treelib:  
-`sudo pip3 install dnslib dnspython treelib`
+Install dnslib and treelib:  
+`sudo pip3 install dnslib treelib`
 
 ## Use
 In one terminal tab enter `sudo python3 main.py`  
